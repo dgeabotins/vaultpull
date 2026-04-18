@@ -2,49 +2,58 @@ package diff
 
 import "fmt"
 
-// Result holds the comparison outcome for a single key.
-type Result struct {
-	Key    string
-	Status string // "added", "removed", "changed", "unchanged"
-	OldVal string
-	NewVal string
+// ChangeType represents the kind of change detected.
+type ChangeType string
+
+const (
+	Added   ChangeType = "added"
+	Changed ChangeType = "changed"
+	Removed ChangeType = "removed"
+	Unchanged ChangeType = "unchanged"
+)
+
+// Change describes a single key-level difference.
+type Change struct {
+	Key      string
+	Type     ChangeType
+	OldValue string
+	NewValue string
 }
 
-// Compare returns a diff between old and new secret maps.
-func Compare(old, new map[string]string) []Result {
-	seen := map[string]bool{}
-	var results []Result
+// Compare returns the list of changes between old and new secret maps.
+func Compare(oldSecrets, newSecrets map[string]string) []Change {
+	var changes []Change
 
-	for k, newVal := range new {
-		seen[k] = true
-		if oldVal, ok := old[k]; !ok {
-			results = append(results, Result{Key: k, Status: "added", NewVal: newVal})
+	for k, newVal := range newSecrets {
+		oldVal, exists := oldSecrets[k]
+		if !exists {
+			changes = append(changes, Change{Key: k, Type: Added, NewValue: newVal})
 		} else if oldVal != newVal {
-			results = append(results, Result{Key: k, Status: "changed", OldVal: oldVal, NewVal: newVal})
+			changes = append(changes, Change{Key: k, Type: Changed, OldValue: oldVal, NewValue: newVal})
 		} else {
-			results = append(results, Result{Key: k, Status: "unchanged", OldVal: oldVal, NewVal: newVal})
+			changes = append(changes, Change{Key: k, Type: Unchanged, OldValue: oldVal, NewValue: newVal})
 		}
 	}
 
-	for k, oldVal := range old {
-		if !seen[k] {
-			results = append(results, Result{Key: k, Status: "removed", OldVal: oldVal})
+	for k, oldVal := range oldSecrets {
+		if _, exists := newSecrets[k]; !exists {
+			changes = append(changes, Change{Key: k, Type: Removed, OldValue: oldVal})
 		}
 	}
 
-	return results
+	return changes
 }
 
-// Summary returns a human-readable summary string.
-func Summary(results []Result) string {
+// Summary returns a human-readable summary of changes.
+func Summary(changes []Change) string {
 	added, changed, removed := 0, 0, 0
-	for _, r := range results {
-		switch r.Status {
-		case "added":
+	for _, c := range changes {
+		switch c.Type {
+		case Added:
 			added++
-		case "changed":
+		case Changed:
 			changed++
-		case "removed":
+		case Removed:
 			removed++
 		}
 	}

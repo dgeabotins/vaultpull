@@ -8,50 +8,50 @@ import (
 func TestCompare_Added(t *testing.T) {
 	old := map[string]string{}
 	new := map[string]string{"FOO": "bar"}
-	results := Compare(old, new)
-	if len(results) != 1 || results[0].Status != "added" {
-		t.Fatalf("expected 1 added result, got %+v", results)
+	changes := Compare(old, new)
+	if len(changes) != 1 || changes[0].Type != Added {
+		t.Fatalf("expected 1 Added change, got %+v", changes)
 	}
 }
 
 func TestCompare_Changed(t *testing.T) {
 	old := map[string]string{"FOO": "old"}
 	new := map[string]string{"FOO": "new"}
-	results := Compare(old, new)
-	if len(results) != 1 || results[0].Status != "changed" {
-		t.Fatalf("expected 1 changed result, got %+v", results)
+	changes := Compare(old, new)
+	if len(changes) != 1 || changes[0].Type != Changed {
+		t.Fatalf("expected 1 Changed change, got %+v", changes)
 	}
-	if results[0].OldVal != "old" || results[0].NewVal != "new" {
-		t.Errorf("unexpected values: %+v", results[0])
+	if changes[0].OldValue != "old" || changes[0].NewValue != "new" {
+		t.Errorf("unexpected values: %+v", changes[0])
 	}
 }
 
 func TestCompare_Removed(t *testing.T) {
 	old := map[string]string{"FOO": "bar"}
 	new := map[string]string{}
-	results := Compare(old, new)
-	if len(results) != 1 || results[0].Status != "removed" {
-		t.Fatalf("expected 1 removed result, got %+v", results)
+	changes := Compare(old, new)
+	if len(changes) != 1 || changes[0].Type != Removed {
+		t.Fatalf("expected 1 Removed change, got %+v", changes)
 	}
 }
 
 func TestCompare_Unchanged(t *testing.T) {
 	old := map[string]string{"FOO": "bar"}
 	new := map[string]string{"FOO": "bar"}
-	results := Compare(old, new)
-	if len(results) != 1 || results[0].Status != "unchanged" {
-		t.Fatalf("expected 1 unchanged result, got %+v", results)
+	changes := Compare(old, new)
+	if len(changes) != 1 || changes[0].Type != Unchanged {
+		t.Fatalf("expected 1 Unchanged change, got %+v", changes)
 	}
 }
 
 func TestSummary_Format(t *testing.T) {
-	results := []Result{
-		{Status: "added"},
-		{Status: "added"},
-		{Status: "changed"},
-		{Status: "removed"},
+	changes := []Change{
+		{Type: Added},
+		{Type: Added},
+		{Type: Changed},
+		{Type: Removed},
 	}
-	s := Summary(results)
+	s := Summary(changes)
 	if !strings.Contains(s, "+2") || !strings.Contains(s, "~1") || !strings.Contains(s, "-1") {
 		t.Errorf("unexpected summary: %s", s)
 	}
