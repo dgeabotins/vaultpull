@@ -1,61 +1,82 @@
 package diff
 
-import "fmt"
-
-// ChangeType represents the kind of change detected.
-type ChangeType string
-
-const (
-	Added   ChangeType = "added"
-	Changed ChangeType = "changed"
-	Removed ChangeType = "removed"
-	Unchanged ChangeType = "unchanged"
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"strings"
 )
 
-// Change describes a single key-level difference.
-type Change struct {
-	Key      string
-	Type     ChangeType
-	OldValue string
-	NewValue string
+// Result holds the diff outcome for a single key.
+type Result struct {
+	Key    string
+	OldVal string
+	NewVal string
+	Status string // added | removed | changed | unchanged
 }
 
-// Compare returns the list of changes between old and new secret maps.
-func Compare(oldSecrets, newSecrets map[string]string) []Change {
-	var changes []Change
+// Compare reads two env files and returns per-key diff results.
+func Compare(oldPath, newPath string) ([]Result, error) {
+	oldMap, err := parseEnvFile(oldPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading old file: %w", err)
+	}
+	newMap, err := parseEnvFile(newPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading new file: %w", err)
+	}
 
-	for k, newVal := range newSecrets {
-		oldVal, exists := oldSecrets[k]
-		if !exists {
-			changes = append(changes, Change{Key: k, Type: Added, NewValue: newVal})
-		} else if oldVal != newVal {
-			changes = append(changes, Change{Key: k, Type: Changed, OldValue: oldVal, NewValue: newVal})
+	seen := map[string]bool{}
+	var results []Result
+
+	for k, ov := range oldMap {
+		seen[k] = true
+		if nv, ok := newMap[k]; !ok {
+			results = append(results, Result{Key: k, OldVal: ov, Status: "removed"})
+		} else if ov != nv {
+			results = append(results, Result{Key: k, OldVal: ov, NewVal: nv, Status: "changed"})
 		} else {
-			changes = append(changes, Change{Key: k, Type: Unchanged, OldValue: oldVal, NewValue: newVal})
+			results = append(results, Result{Key: k, OldVal: ov, NewVal: nv, Status: "unchanged"})
 		}
 	}
 
-	for k, oldVal := range oldSecrets {
-		if _, exists := newSecrets[k]; !exists {
-			changes = append(changes, Change{Key: k, Type: Removed, OldValue: oldVal})
+	for k, nv := range newMap {
+		if !seen[k] {
+			results = append(results, Result{Key: k, NewVal: nv, Status: "added"})
 		}
 	}
 
-	return changes
+	return results, nil
 }
 
-// Summary returns a human-readable summary of changes.
-func Summary(changes []Change) string {
-	added, changed, removed := 0, 0, 0
-	for _, c := range changes {
-		switch c.Type {
-		case Added:
-			added++
-		case Changed:
-			changed++
-		case Removed:
-			removed++
+// Summary returns a human-readable summary line.
+func Summary(results []Result) string {
+	counts := map[string]int{}
+	for _, r := range results {
+		counts[r.Status]++
+	}
+	return fmt.Sprintf("+%d added  ~%d changed  -%d removed  =%d unchanged",
+		counts["added"], counts["changed"], counts["removed"], counts["unchanged"])
+}
+
+func parseEnvFile(path string) (map[string]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	m := map[string]string{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) == 2 {
+			m[parts[0]] = parts[1]
 		}
 	}
-	return fmt.Sprintf("+%d added, ~%d changed, -%d removed", added, changed, removed)
+	return m, scanner.Err()
 }
