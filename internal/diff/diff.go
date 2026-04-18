@@ -2,44 +2,51 @@ package diff
 
 import "fmt"
 
-// Result holds the comparison between existing and incoming secrets.
+// Result holds the comparison outcome for a single key.
 type Result struct {
-	Added   map[string]string
-	Changed map[string]string
-	Removed map[string]string
-	Unchanged map[string]string
+	Key    string
+	Status string // "added", "removed", "changed", "unchanged"
+	OldVal string
+	NewVal string
 }
 
-// Compare returns a Result describing differences between old and new secret maps.
-func Compare(old, incoming map[string]string) Result {
-	r := Result{
-		Added:     make(map[string]string),
-		Changed:   make(map[string]string),
-		Removed:   make(map[string]string),
-		Unchanged: make(map[string]string),
-	}
+// Compare returns a diff between old and new secret maps.
+func Compare(old, new map[string]string) []Result {
+	seen := map[string]bool{}
+	var results []Result
 
-	for k, v := range incoming {
-		if oldVal, exists := old[k]; !exists {
-			r.Added[k] = v
-		} else if oldVal != v {
-			r.Changed[k] = v
+	for k, newVal := range new {
+		seen[k] = true
+		if oldVal, ok := old[k]; !ok {
+			results = append(results, Result{Key: k, Status: "added", NewVal: newVal})
+		} else if oldVal != newVal {
+			results = append(results, Result{Key: k, Status: "changed", OldVal: oldVal, NewVal: newVal})
 		} else {
-			r.Unchanged[k] = v
+			results = append(results, Result{Key: k, Status: "unchanged", OldVal: oldVal, NewVal: newVal})
 		}
 	}
 
-	for k, v := range old {
-		if _, exists := incoming[k]; !exists {
-			r.Removed[k] = v
+	for k, oldVal := range old {
+		if !seen[k] {
+			results = append(results, Result{Key: k, Status: "removed", OldVal: oldVal})
 		}
 	}
 
-	return r
+	return results
 }
 
-// Summary returns a human-readable summary of the diff result.
-func Summary(r Result) string {
-	return fmt.Sprintf("+%d added, ~%d changed, -%d removed, %d unchanged",
-		len(r.Added), len(r.Changed), len(r.Removed), len(r.Unchanged))
+// Summary returns a human-readable summary string.
+func Summary(results []Result) string {
+	added, changed, removed := 0, 0, 0
+	for _, r := range results {
+		switch r.Status {
+		case "added":
+			added++
+		case "changed":
+			changed++
+		case "removed":
+			removed++
+		}
+	}
+	return fmt.Sprintf("+%d added, ~%d changed, -%d removed", added, changed, removed)
 }

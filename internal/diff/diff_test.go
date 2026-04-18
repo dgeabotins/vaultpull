@@ -7,49 +7,52 @@ import (
 
 func TestCompare_Added(t *testing.T) {
 	old := map[string]string{}
-	incoming := map[string]string{"FOO": "bar"}
-	r := Compare(old, incoming)
-	if _, ok := r.Added["FOO"]; !ok {
-		t.Error("expected FOO to be in Added")
+	new := map[string]string{"FOO": "bar"}
+	results := Compare(old, new)
+	if len(results) != 1 || results[0].Status != "added" {
+		t.Fatalf("expected 1 added result, got %+v", results)
 	}
 }
 
 func TestCompare_Changed(t *testing.T) {
 	old := map[string]string{"FOO": "old"}
-	incoming := map[string]string{"FOO": "new"}
-	r := Compare(old, incoming)
-	if v, ok := r.Changed["FOO"]; !ok || v != "new" {
-		t.Errorf("expected FOO in Changed with value 'new', got %q", v)
+	new := map[string]string{"FOO": "new"}
+	results := Compare(old, new)
+	if len(results) != 1 || results[0].Status != "changed" {
+		t.Fatalf("expected 1 changed result, got %+v", results)
+	}
+	if results[0].OldVal != "old" || results[0].NewVal != "new" {
+		t.Errorf("unexpected values: %+v", results[0])
 	}
 }
 
 func TestCompare_Removed(t *testing.T) {
-	old := map[string]string{"FOO": "bar", "BAZ": "qux"}
-	incoming := map[string]string{"BAZ": "qux"}
-	r := Compare(old, incoming)
-	if _, ok := r.Removed["FOO"]; !ok {
-		t.Error("expected FOO to be in Removed")
+	old := map[string]string{"FOO": "bar"}
+	new := map[string]string{}
+	results := Compare(old, new)
+	if len(results) != 1 || results[0].Status != "removed" {
+		t.Fatalf("expected 1 removed result, got %+v", results)
 	}
 }
 
 func TestCompare_Unchanged(t *testing.T) {
 	old := map[string]string{"FOO": "bar"}
-	incoming := map[string]string{"FOO": "bar"}
-	r := Compare(old, incoming)
-	if _, ok := r.Unchanged["FOO"]; !ok {
-		t.Error("expected FOO to be in Unchanged")
+	new := map[string]string{"FOO": "bar"}
+	results := Compare(old, new)
+	if len(results) != 1 || results[0].Status != "unchanged" {
+		t.Fatalf("expected 1 unchanged result, got %+v", results)
 	}
 }
 
 func TestSummary_Format(t *testing.T) {
-	r := Result{
-		Added:     map[string]string{"A": "1"},
-		Changed:   map[string]string{"B": "2"},
-		Removed:   map[string]string{},
-		Unchanged: map[string]string{"C": "3", "D": "4"},
+	results := []Result{
+		{Status: "added"},
+		{Status: "added"},
+		{Status: "changed"},
+		{Status: "removed"},
 	}
-	s := Summary(r)
-	if !strings.Contains(s, "+1") || !strings.Contains(s, "~1") || !strings.Contains(s, "-0") {
+	s := Summary(results)
+	if !strings.Contains(s, "+2") || !strings.Contains(s, "~1") || !strings.Contains(s, "-1") {
 		t.Errorf("unexpected summary: %s", s)
 	}
 }
