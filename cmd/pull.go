@@ -39,10 +39,27 @@ func runPull(cmd *cobra.Command, args []string) error {
 
 	syncer := sync.New(cfg, client, output)
 	if err := syncer.Run(profile); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		return err
+		return fmt.Errorf("syncing secrets: %w", err)
 	}
 
 	fmt.Printf("Secrets written to %s\n", output)
 	return nil
+}
+
+// confirmOverwrite checks if the output file already exists and prompts the
+// user for confirmation before overwriting it. Returns true if it is safe to
+// proceed.
+func confirmOverwrite(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return true, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("checking output file: %w", err)
+	}
+
+	fmt.Printf("File %s already exists. Overwrite? [y/N]: ", path)
+	var answer string
+	fmt.Fscan(os.Stdin, &answer)
+	return answer == "y" || answer == "Y", nil
 }
