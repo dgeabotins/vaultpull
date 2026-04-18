@@ -6,10 +6,17 @@ type Recorder interface {
 }
 
 // NewRecorder returns a real Logger when path is non-empty,
-// otherwise returns a NoopLogger.
+// otherwise returns a NoopLogger. The caller is responsible for
+// closing the underlying logger when it is no longer needed.
 func NewRecorder(path string) Recorder {
 	if path == "" {
 		return &NoopLogger{}
 	}
 	return New(path)
+}
+
+// IsNoop reports whether r is a no-op recorder that discards all entries.
+func IsNoop(r Recorder) bool {
+	_, ok := r.(*NoopLogger)
+	return ok
 }
