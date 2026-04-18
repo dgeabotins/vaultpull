@@ -1,28 +1,29 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
 )
 
-// Profile represents a named Vault sync configuration.
+// Profile represents a named sync target.
 type Profile struct {
-	Name      string            `yaml:"name"`
-	VaultAddr string            `yaml:"vault_addr"`
-	VaultPath string            `yaml:"vault_path"`
-	OutputFile string           `yaml:"output_file"`
-	Mapping   map[string]string `yaml:"mapping,omitempty"`
+	Name   string `yaml:"name"`
+	Path   string `yaml:"path"`
+	Output string `yaml:"output"`
 }
 
-// Config is the top-level configuration structure.
+// Config holds the top-level configuration.
 type Config struct {
-	DefaultProfile string    `yaml:"default_profile"`
-	Profiles       []Profile `yaml:"profiles"`
+	VaultAddr  string    `yaml:"vault_addr"`
+	VaultToken string    `yaml:"vault_token"`
+	Default    string    `yaml:"default"`
+	Profiles   []Profile `yaml:"profiles"`
 }
 
-// Load reads and parses a vaultpull config file from the given path.
+// Load reads and parses the YAML config file at path.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -34,17 +35,17 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config file: %w", err)
 	}
 
-	if err := cfg.validate(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
+	if cfg.VaultAddr == "" {
+		return nil, errors.New("vault_addr is required")
 	}
 
 	return &cfg, nil
 }
 
-// GetProfile returns the profile matching the given name.
+// GetProfile returns the profile matching name, falling back to Default, or error.
 func (c *Config) GetProfile(name string) (*Profile, error) {
 	if name == "" {
-		name = c.DefaultProfile
+		name = c.Default
 	}
 	for i := range c.Profiles {
 		if c.Profiles[i].Name == name {
@@ -52,30 +53,4 @@ func (c *Config) GetProfile(name string) (*Profile, error) {
 		}
 	}
 	return nil, fmt.Errorf("profile %q not found", name)
-}
-
-func (c *Config) validate() error {
-	if len(c.Profiles) == 0 {
-		return fmt.Errorf("at least one profile must be defined")
-	}
-	seen := map[string]bool{}
-	for _, p := range c.Profiles {
-		if p.Name == "" {
-			return fmt.Errorf("profile name must not be empty")
-		}
-		if seen[p.Name] {
-			return fmt.Errorf("duplicate profile name: %q", p.Name)
-		}
-		seen[p.Name] = true
-		if p.VaultAddr == "" {
-			return fmt.Errorf("profile %q: vault_addr is required", p.Name)
-		}
-		if p.VaultPath == "" {
-			return fmt.Errorf("profile %q: vault_path is required", p.Name)
-		}
-		if p.OutputFile == "" {
-			return fmt.Errorf("profile %q: output_file is required", p.Name)
-		}
-	}
-	return nil
 }
