@@ -25,9 +25,13 @@ func init() {
 }
 
 func runWhoami(profile string) error {
+	if profile == "" {
+		return fmt.Errorf("profile name must not be empty")
+	}
+
 	info, err := whoami.Gather(profile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error gathering info for profile %q: %v\n", profile, err)
 		return err
 	}
 	fmt.Println(info.Format())
