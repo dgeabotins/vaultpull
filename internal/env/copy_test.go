@@ -74,3 +74,16 @@ func TestCopy_SourceNotFound(t *testing.T) {
 		t.Error("expected error for missing source")
 	}
 }
+
+func TestCopy_EmptySource(t *testing.T) {
+	src := writeTempEnvForCopy(t, "")
+	dst := filepath.Join(t.TempDir(), "dst.env")
+
+	res, err := Copy(src, dst, nil)
+	if err != nil {
+		t.Fatalf("unexpected error copying empty source: %v", err)
+	}
+	if len(res.Keys) != 0 {
+		t.Errorf("expected 0 keys from empty source, got %d", len(res.Keys))
+	}
+}
