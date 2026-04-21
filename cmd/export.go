@@ -51,6 +51,10 @@ func runExport(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fetching secrets: %w", err)
 	}
 
+	if len(secrets) == 0 {
+		fmt.Fprintf(os.Stderr, "warning: no secrets found at path %q\n", profile.Path)
+	}
+
 	ex, err := export.New(exportFormat)
 	if err != nil {
 		return err
