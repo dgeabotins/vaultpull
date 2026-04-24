@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 )
@@ -75,7 +76,7 @@ func DecryptValues(m map[string]string, key []byte) (map[string]string, error) {
 		}
 		raw, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(v, encryptedPrefix))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("base64 decode failed for key %q: %w", k, err)
 		}
 		if len(raw) < gcm.NonceSize() {
 			return nil, errors.New("ciphertext too short for key: " + k)
@@ -83,7 +84,7 @@ func DecryptValues(m map[string]string, key []byte) (map[string]string, error) {
 		nonce, ct := raw[:gcm.NonceSize()], raw[gcm.NonceSize():]
 		plain, err := gcm.Open(nil, nonce, ct, nil)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("decryption failed for key %q: %w", k, err)
 		}
 		out[k] = string(plain)
 	}
