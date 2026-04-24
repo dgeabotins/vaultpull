@@ -58,3 +58,15 @@ func TestFormat_ContainsFields(t *testing.T) {
 		}
 	}
 }
+
+func TestFormat_ContainsProfileValue(t *testing.T) {
+	profile := "my-test-profile"
+	info, err := Gather(profile)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out := info.Format()
+	if !strings.Contains(out, profile) {
+		t.Errorf("Format() output does not contain profile value %q", profile)
+	}
+}
