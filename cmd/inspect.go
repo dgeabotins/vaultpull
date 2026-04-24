@@ -10,6 +10,8 @@ import (
 	"github.com/vaultpull/vaultpull/internal/env"
 )
 
+const maxValueDisplayLen = 40
+
 var inspectFile string
 
 func init() {
@@ -35,13 +37,18 @@ func runInspect(cmd *cobra.Command, _ []string) error {
 	fmt.Fprintln(w, "KEY\tVALUE")
 	fmt.Fprintln(w, "---\t-----")
 	for _, e := range entries {
-		val := e.Value
-		if len(val) > 40 {
-			val = val[:40] + "..."
-		}
-		fmt.Fprintf(w, "%s\t%s\n", e.Key, val)
+		fmt.Fprintf(w, "%s\t%s\n", e.Key, truncateValue(e.Value))
 	}
 	return w.Flush()
+}
+
+// truncateValue shortens a value to maxValueDisplayLen characters, appending
+// "..." if the value was truncated.
+func truncateValue(val string) string {
+	if len(val) > maxValueDisplayLen {
+		return val[:maxValueDisplayLen] + "..."
+	}
+	return val
 }
 
 // InspectEnvFile is exported for testing.
